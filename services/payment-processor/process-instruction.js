@@ -233,7 +233,247 @@ function parseInstruction(instruction) {
   return null;
 }
 
-async function processPaymentInstruction(serviceData, options = {}) {
+/**
+ * Supported currencies
+ */
+const SUPPORTED_CURRENCIES = ['NGN', 'USD', 'GBP', 'GHS'];
+
+/**
+ * Validate amount is positive integer
+ * @param {string} amountStr
+ * @returns {{valid: boolean, errorCode?: string, errorMessage?: string}}
+ */
+function validateAmount(amountStr) {
+  if (!amountStr || amountStr.trim() === '') {
+    return {
+      valid: false,
+      errorCode: 'AM01',
+      errorMessage: PaymentMessages.INVALID_AMOUNT,
+    };
+  }
+
+  // Check for negative sign
+  if (amountStr.includes('-')) {
+    return {
+      valid: false,
+      errorCode: 'AM01',
+      errorMessage: PaymentMessages.INVALID_AMOUNT,
+    };
+  }
+
+  // Check for decimal point
+  if (amountStr.includes('.')) {
+    return {
+      valid: false,
+      errorCode: 'AM01',
+      errorMessage: PaymentMessages.INVALID_AMOUNT,
+    };
+  }
+
+  // Try to parse as integer
+  const amount = parseInt(amountStr, 10);
+
+  // Check if it's a valid number and positive
+  if (Number.isNaN(amount) || amount <= 0) {
+    return {
+      valid: false,
+      errorCode: 'AM01',
+      errorMessage: PaymentMessages.INVALID_AMOUNT,
+    };
+  }
+
+  // Check if the string representation matches (to catch cases like "100abc")
+  if (amount.toString() !== amountStr.trim()) {
+    return {
+      valid: false,
+      errorCode: 'AM01',
+      errorMessage: PaymentMessages.INVALID_AMOUNT,
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Validate currency is supported
+ * @param {string} currency
+ * @returns {{valid: boolean, errorCode?: string, errorMessage?: string}}
+ */
+function validateCurrency(currency) {
+  if (!currency) {
+    return {
+      valid: false,
+      errorCode: 'CU02',
+      errorMessage: PaymentMessages.UNSUPPORTED_CURRENCY,
+    };
+  }
+
+  const upperCurrency = currency.toUpperCase();
+  if (!SUPPORTED_CURRENCIES.includes(upperCurrency)) {
+    return {
+      valid: false,
+      errorCode: 'CU02',
+      errorMessage: PaymentMessages.UNSUPPORTED_CURRENCY,
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Validate account ID format (letters, numbers, hyphens, periods, @ only)
+ * @param {string} accountId
+ * @returns {{valid: boolean, errorCode?: string, errorMessage?: string}}
+ */
+function validateAccountIdFormat(accountId) {
+  if (!accountId || accountId.trim() === '') {
+    return {
+      valid: false,
+      errorCode: 'AC04',
+      errorMessage: PaymentMessages.INVALID_ACCOUNT_ID,
+    };
+  }
+
+  // Check each character - must be letter, number, hyphen, period, or @
+  for (let i = 0; i < accountId.length; i++) {
+    const char = accountId[i];
+    const isLetter = (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z');
+    const isNumber = char >= '0' && char <= '9';
+    const isHyphen = char === '-';
+    const isPeriod = char === '.';
+    const isAt = char === '@';
+
+    if (!isLetter && !isNumber && !isHyphen && !isPeriod && !isAt) {
+      return {
+        valid: false,
+        errorCode: 'AC04',
+        errorMessage: PaymentMessages.INVALID_ACCOUNT_ID,
+      };
+    }
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Validate date format YYYY-MM-DD
+ * @param {string} dateStr
+ * @returns {{valid: boolean, errorCode?: string, errorMessage?: string}}
+ */
+function validateDateFormat(dateStr) {
+  if (!dateStr || dateStr.trim() === '') {
+    return {
+      valid: false,
+      errorCode: 'DT01',
+      errorMessage: PaymentMessages.INVALID_DATE_FORMAT,
+    };
+  }
+
+  // Check format: YYYY-MM-DD (exactly 10 characters)
+  if (dateStr.length !== 10) {
+    return {
+      valid: false,
+      errorCode: 'DT01',
+      errorMessage: PaymentMessages.INVALID_DATE_FORMAT,
+    };
+  }
+
+  // Check for hyphens at positions 4 and 7
+  if (dateStr[4] !== '-' || dateStr[7] !== '-') {
+    return {
+      valid: false,
+      errorCode: 'DT01',
+      errorMessage: PaymentMessages.INVALID_DATE_FORMAT,
+    };
+  }
+
+  // Extract parts
+  const year = dateStr.substring(0, 4);
+  const month = dateStr.substring(5, 7);
+  const day = dateStr.substring(8, 10);
+
+  // Check all parts are numeric
+  const isNumeric = (str) => {
+    for (let i = 0; i < str.length; i++) {
+      if (str[i] < '0' || str[i] > '9') {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  if (!isNumeric(year) || !isNumeric(month) || !isNumeric(day)) {
+    return {
+      valid: false,
+      errorCode: 'DT01',
+      errorMessage: PaymentMessages.INVALID_DATE_FORMAT,
+    };
+  }
+
+  // Validate month range (01-12)
+  const monthNum = parseInt(month, 10);
+  if (monthNum < 1 || monthNum > 12) {
+    return {
+      valid: false,
+      errorCode: 'DT01',
+      errorMessage: PaymentMessages.INVALID_DATE_FORMAT,
+    };
+  }
+
+  // Validate day range (01-31)
+  const dayNum = parseInt(day, 10);
+  if (dayNum < 1 || dayNum > 31) {
+    return {
+      valid: false,
+      errorCode: 'DT01',
+      errorMessage: PaymentMessages.INVALID_DATE_FORMAT,
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Validate parsed instruction syntax and format
+ * @param {object} parsed
+ * @returns {{valid: boolean, errorCode?: string, errorMessage?: string}}
+ */
+function validateSyntaxAndFormat(parsed) {
+  // Validate amount
+  const amountValidation = validateAmount(parsed.amount);
+  if (!amountValidation.valid) {
+    return amountValidation;
+  }
+
+  // Validate currency
+  const currencyValidation = validateCurrency(parsed.currency);
+  if (!currencyValidation.valid) {
+    return currencyValidation;
+  }
+
+  // Validate account IDs
+  const debitAccountValidation = validateAccountIdFormat(parsed.debit_account);
+  if (!debitAccountValidation.valid) {
+    return debitAccountValidation;
+  }
+
+  const creditAccountValidation = validateAccountIdFormat(parsed.credit_account);
+  if (!creditAccountValidation.valid) {
+    return creditAccountValidation;
+  }
+
+  // Validate date format if present
+  if (parsed.execute_by) {
+    const dateValidation = validateDateFormat(parsed.execute_by);
+    if (!dateValidation.valid) {
+      return dateValidation;
+    }
+  }
+
+  return { valid: true };
+}
+
+async function processPaymentInstruction(serviceData, _options = {}) {
   let response;
 
   try {
@@ -260,21 +500,42 @@ async function processPaymentInstruction(serviceData, options = {}) {
         accounts: [],
       };
     } else {
-      // Successfully parsed - convert amount to number
-      const amount = parsed.amount ? parseInt(parsed.amount, 10) : null;
+      // Validate syntax and format
+      const syntaxValidation = validateSyntaxAndFormat(parsed);
 
-      response = {
-        type: parsed.type,
-        amount,
-        currency: parsed.currency,
-        debit_account: parsed.debit_account,
-        credit_account: parsed.credit_account,
-        execute_by: parsed.execute_by,
-        status: 'failed', // Will be updated in later stages
-        status_reason: 'Parsed successfully', // Will be updated in later stages
-        status_code: 'SY03', // Will be updated in later stages
-        accounts: [], // Will be populated in later stages
-      };
+      if (!syntaxValidation.valid) {
+        // Syntax/format validation failed
+        const amount = parsed.amount ? parseInt(parsed.amount, 10) : null;
+
+        response = {
+          type: parsed.type,
+          amount,
+          currency: parsed.currency,
+          debit_account: parsed.debit_account,
+          credit_account: parsed.credit_account,
+          execute_by: parsed.execute_by,
+          status: 'failed',
+          status_reason: syntaxValidation.errorMessage || 'Validation failed',
+          status_code: syntaxValidation.errorCode || 'SY03',
+          accounts: [], // Will be populated in later stages
+        };
+      } else {
+        // Successfully parsed and validated syntax/format
+        const amount = parsed.amount ? parseInt(parsed.amount, 10) : null;
+
+        response = {
+          type: parsed.type,
+          amount,
+          currency: parsed.currency,
+          debit_account: parsed.debit_account,
+          credit_account: parsed.credit_account,
+          execute_by: parsed.execute_by,
+          status: 'failed', // Will be updated in later stages (business validation)
+          status_reason: 'Syntax validation passed', // Will be updated in later stages
+          status_code: 'SY03', // Will be updated in later stages
+          accounts: [], // Will be populated in later stages
+        };
+      }
     }
 
     appLogger.info({ parsed, response }, 'parsing-instruction-complete');
