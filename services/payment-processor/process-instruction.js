@@ -473,6 +473,109 @@ function validateSyntaxAndFormat(parsed) {
   return { valid: true };
 }
 
+/**
+ * Find account by ID in accounts array
+ * @param {Array} accounts
+ * @param {string} accountId
+ * @returns {object|null}
+ */
+function findAccount(accounts, accountId) {
+  if (!accounts || !Array.isArray(accounts)) {
+    return null;
+  }
+
+  for (let i = 0; i < accounts.length; i++) {
+    if (accounts[i].id === accountId) {
+      return accounts[i];
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Validate business logic rules
+ * @param {object} parsed
+ * @param {Array} accounts
+ * @returns {{valid: boolean, errorCode?: string, errorMessage?: string, debitAccount?: object, creditAccount?: object}}
+ */
+function validateBusinessLogic(parsed, accounts) {
+  // Find debit account
+  const debitAccount = findAccount(accounts, parsed.debit_account);
+  if (!debitAccount) {
+    return {
+      valid: false,
+      errorCode: 'AC03',
+      errorMessage: PaymentMessages.ACCOUNT_NOT_FOUND,
+    };
+  }
+
+  // Find credit account
+  const creditAccount = findAccount(accounts, parsed.credit_account);
+  if (!creditAccount) {
+    return {
+      valid: false,
+      errorCode: 'AC03',
+      errorMessage: PaymentMessages.ACCOUNT_NOT_FOUND,
+    };
+  }
+
+  // Check if debit and credit accounts are the same
+  if (parsed.debit_account === parsed.credit_account) {
+    return {
+      valid: false,
+      errorCode: 'AC02',
+      errorMessage: PaymentMessages.SAME_ACCOUNT_ERROR,
+      debitAccount,
+      creditAccount,
+    };
+  }
+
+  // Check currency mismatch
+  const parsedCurrency = parsed.currency.toUpperCase();
+  const debitCurrency = debitAccount.currency.toUpperCase();
+  const creditCurrency = creditAccount.currency.toUpperCase();
+
+  if (debitCurrency !== creditCurrency) {
+    return {
+      valid: false,
+      errorCode: 'CU01',
+      errorMessage: PaymentMessages.CURRENCY_MISMATCH,
+      debitAccount,
+      creditAccount,
+    };
+  }
+
+  // Check if parsed currency matches account currencies
+  if (parsedCurrency !== debitCurrency || parsedCurrency !== creditCurrency) {
+    return {
+      valid: false,
+      errorCode: 'CU01',
+      errorMessage: PaymentMessages.CURRENCY_MISMATCH,
+      debitAccount,
+      creditAccount,
+    };
+  }
+
+  // Check insufficient funds
+  const amount = parseInt(parsed.amount, 10);
+  if (debitAccount.balance < amount) {
+    return {
+      valid: false,
+      errorCode: 'AC01',
+      errorMessage: PaymentMessages.INSUFFICIENT_FUNDS,
+      debitAccount,
+      creditAccount,
+    };
+  }
+
+  return {
+    valid: true,
+    debitAccount,
+    creditAccount,
+  };
+}
+
 async function processPaymentInstruction(serviceData, _options = {}) {
   let response;
 
@@ -521,20 +624,78 @@ async function processPaymentInstruction(serviceData, _options = {}) {
         };
       } else {
         // Successfully parsed and validated syntax/format
-        const amount = parsed.amount ? parseInt(parsed.amount, 10) : null;
+        // Now validate business logic
+        const businessValidation = validateBusinessLogic(parsed, data.accounts);
 
-        response = {
-          type: parsed.type,
-          amount,
-          currency: parsed.currency,
-          debit_account: parsed.debit_account,
-          credit_account: parsed.credit_account,
-          execute_by: parsed.execute_by,
-          status: 'failed', // Will be updated in later stages (business validation)
-          status_reason: 'Syntax validation passed', // Will be updated in later stages
-          status_code: 'SY03', // Will be updated in later stages
-          accounts: [], // Will be populated in later stages
-        };
+        if (!businessValidation.valid) {
+          // Business logic validation failed
+          const amount = parsed.amount ? parseInt(parsed.amount, 10) : null;
+
+          // Prepare accounts array with balance_before (unchanged balances)
+          const accountsArray = [];
+          if (businessValidation.debitAccount) {
+            accountsArray.push({
+              id: businessValidation.debitAccount.id,
+              balance: businessValidation.debitAccount.balance,
+              balance_before: businessValidation.debitAccount.balance,
+              currency: businessValidation.debitAccount.currency,
+            });
+          }
+          if (businessValidation.creditAccount) {
+            accountsArray.push({
+              id: businessValidation.creditAccount.id,
+              balance: businessValidation.creditAccount.balance,
+              balance_before: businessValidation.creditAccount.balance,
+              currency: businessValidation.creditAccount.currency,
+            });
+          }
+
+          // Maintain order from request
+          const orderedAccounts = [];
+          for (let i = 0; i < data.accounts.length; i++) {
+            const acc = data.accounts[i];
+            if (acc.id === parsed.debit_account || acc.id === parsed.credit_account) {
+              orderedAccounts.push({
+                id: acc.id,
+                balance: acc.balance,
+                balance_before: acc.balance,
+                currency: acc.currency,
+              });
+            }
+          }
+
+          response = {
+            type: parsed.type,
+            amount,
+            currency: parsed.currency,
+            debit_account: parsed.debit_account,
+            credit_account: parsed.credit_account,
+            execute_by: parsed.execute_by,
+            status: 'failed',
+            status_reason: businessValidation.errorMessage || 'Business validation failed',
+            status_code: businessValidation.errorCode || 'SY03',
+            accounts: orderedAccounts,
+          };
+        } else {
+          // Successfully parsed and validated - ready for execution in next stage
+          const amount = parsed.amount ? parseInt(parsed.amount, 10) : null;
+          const { debitAccount } = businessValidation;
+          const { creditAccount } = businessValidation;
+
+          response = {
+            type: parsed.type,
+            amount,
+            currency: parsed.currency,
+            debit_account: parsed.debit_account,
+            credit_account: parsed.credit_account,
+            execute_by: parsed.execute_by,
+            status: 'failed', // Will be updated in Stage 5 (execution)
+            status_reason: 'Validation passed', // Will be updated in Stage 5
+            status_code: 'SY03', // Will be updated in Stage 5
+            accounts: [], // Will be populated in Stage 5
+            // Note: debitAccount and creditAccount are available locally for Stage 5
+          };
+        }
       }
     }
 
