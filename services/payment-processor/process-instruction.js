@@ -576,6 +576,84 @@ function validateBusinessLogic(parsed, accounts) {
   };
 }
 
+/**
+ * Compare date with current UTC date (date portion only)
+ * @param {string} dateStr - Date in YYYY-MM-DD format
+ * @returns {number} - Negative if date is in past, 0 if today, positive if in future
+ */
+function compareDateWithToday(dateStr) {
+  if (!dateStr) {
+    return -1; // No date means execute immediately
+  }
+
+  // Parse date string
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) {
+    return -1; // Invalid format, treat as immediate
+  }
+
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed in Date
+  const day = parseInt(parts[2], 10);
+
+  // Create date object (UTC)
+  const instructionDate = new Date(Date.UTC(year, month, day));
+  const today = new Date();
+
+  // Get UTC date components for today
+  const todayYear = today.getUTCFullYear();
+  const todayMonth = today.getUTCMonth();
+  const todayDay = today.getUTCDate();
+
+  // Create UTC date for today (midnight)
+  const todayUTC = new Date(Date.UTC(todayYear, todayMonth, todayDay));
+
+  // Compare dates (date portion only)
+  const instructionTime = instructionDate.getTime();
+  const todayTime = todayUTC.getTime();
+
+  if (instructionTime < todayTime) {
+    return -1; // Past date - execute immediately
+  }
+  if (instructionTime === todayTime) {
+    return 0; // Today - execute immediately
+  }
+  return 1; // Future date - pending
+}
+
+/**
+ * Execute transaction and update balances
+ * @param {object} debitAccount
+ * @param {object} creditAccount
+ * @param {number} amount
+ * @returns {object} Updated accounts with balance_before
+ */
+function executeTransaction(debitAccount, creditAccount, amount) {
+  // Store original balances
+  const debitBalanceBefore = debitAccount.balance;
+  const creditBalanceBefore = creditAccount.balance;
+
+  // Update balances
+  const updatedDebitAccount = {
+    id: debitAccount.id,
+    balance: debitBalanceBefore - amount,
+    balance_before: debitBalanceBefore,
+    currency: debitAccount.currency,
+  };
+
+  const updatedCreditAccount = {
+    id: creditAccount.id,
+    balance: creditBalanceBefore + amount,
+    balance_before: creditBalanceBefore,
+    currency: creditAccount.currency,
+  };
+
+  return {
+    debitAccount: updatedDebitAccount,
+    creditAccount: updatedCreditAccount,
+  };
+}
+
 async function processPaymentInstruction(serviceData, _options = {}) {
   let response;
 
@@ -677,24 +755,71 @@ async function processPaymentInstruction(serviceData, _options = {}) {
             accounts: orderedAccounts,
           };
         } else {
-          // Successfully parsed and validated - ready for execution in next stage
+          // Successfully parsed and validated - execute transaction
           const amount = parsed.amount ? parseInt(parsed.amount, 10) : null;
           const { debitAccount } = businessValidation;
           const { creditAccount } = businessValidation;
 
-          response = {
-            type: parsed.type,
-            amount,
-            currency: parsed.currency,
-            debit_account: parsed.debit_account,
-            credit_account: parsed.credit_account,
-            execute_by: parsed.execute_by,
-            status: 'failed', // Will be updated in Stage 5 (execution)
-            status_reason: 'Validation passed', // Will be updated in Stage 5
-            status_code: 'SY03', // Will be updated in Stage 5
-            accounts: [], // Will be populated in Stage 5
-            // Note: debitAccount and creditAccount are available locally for Stage 5
-          };
+          // Check if transaction should execute immediately or be pending
+          const dateComparison = compareDateWithToday(parsed.execute_by);
+
+          if (dateComparison <= 0) {
+            // Execute immediately (no date, past date, or today)
+            const executed = executeTransaction(debitAccount, creditAccount, amount);
+
+            // Maintain order from request
+            const orderedAccounts = [];
+            for (let i = 0; i < data.accounts.length; i++) {
+              const acc = data.accounts[i];
+              if (acc.id === parsed.debit_account) {
+                orderedAccounts.push(executed.debitAccount);
+              }
+              if (acc.id === parsed.credit_account) {
+                orderedAccounts.push(executed.creditAccount);
+              }
+            }
+
+            response = {
+              type: parsed.type,
+              amount,
+              currency: parsed.currency,
+              debit_account: parsed.debit_account,
+              credit_account: parsed.credit_account,
+              execute_by: parsed.execute_by,
+              status: 'successful',
+              status_reason: PaymentMessages.TRANSACTION_SUCCESSFUL,
+              status_code: 'AP00',
+              accounts: orderedAccounts,
+            };
+          } else {
+            // Future date - pending execution (no balance changes)
+            // Maintain order from request
+            const orderedAccounts = [];
+            for (let i = 0; i < data.accounts.length; i++) {
+              const acc = data.accounts[i];
+              if (acc.id === parsed.debit_account || acc.id === parsed.credit_account) {
+                orderedAccounts.push({
+                  id: acc.id,
+                  balance: acc.balance,
+                  balance_before: acc.balance,
+                  currency: acc.currency,
+                });
+              }
+            }
+
+            response = {
+              type: parsed.type,
+              amount,
+              currency: parsed.currency,
+              debit_account: parsed.debit_account,
+              credit_account: parsed.credit_account,
+              execute_by: parsed.execute_by,
+              status: 'pending',
+              status_reason: PaymentMessages.TRANSACTION_PENDING,
+              status_code: 'AP02',
+              accounts: orderedAccounts,
+            };
+          }
         }
       }
     }
