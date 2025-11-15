@@ -20,7 +20,7 @@ const expressEnums = require('./enums');
 function Server(serverConfig = {}) {
   const express = require('express');
   const { appLogger } = require('@app-core/logger');
-  const { ERROR_STATUS_CODE_MAPPING } = require('@app-core/errors');
+  const { ERROR_STATUS_CODE_MAPPING, ERROR_CODE_TO_KEY } = require('@app-core/errors');
   const cors = require('cors');
   const { getClientIp } = require('request-ip');
   const app = express();
@@ -246,6 +246,10 @@ function Server(serverConfig = {}) {
         responseComponents.body.message = error.isApplicationError
           ? error.message
           : 'Some error occured.';
+        responseComponents.body.code =
+          error.isApplicationError && error.errorCode
+            ? ERROR_CODE_TO_KEY[error.errorCode] || error.errorCode
+            : undefined;
         responseComponents.body.errors = error.details || undefined;
         responseComponents.body.data = error.context;
 

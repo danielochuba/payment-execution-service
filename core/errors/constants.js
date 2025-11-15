@@ -37,4 +37,9 @@ const ERROR_STATUS_CODE_MAPPING = {
   RATE_LIMIT_ERROR: 429,
 };
 
-module.exports = { ERROR_CODE, ERROR_STATUS_CODE_MAPPING };
+const ERROR_CODE_TO_KEY = {};
+Object.keys(ERROR_CODE).forEach((key) => {
+  ERROR_CODE_TO_KEY[ERROR_CODE[key]] = key;
+});
+
+module.exports = { ERROR_CODE, ERROR_STATUS_CODE_MAPPING, ERROR_CODE_TO_KEY };
