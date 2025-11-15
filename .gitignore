@@ -1,0 +1,20 @@
+# IDE
+.vscode
+
+# FRAMEWORK
+.node-gyp
+node_modules
+
+# MISC
+.glitchdotcom.json
+playground
+testlogs
+endpoint-data
+
+# ENV & LOGS
+.env
+*.env
+*.logs
+
+# OS
+.DS_Store

@@ -1,0 +1,7 @@
+{
+  "name": "@app-core/validator/payment-instructions",
+  "version": "1.0.0",
+  "description": "Payment instruction validation utilities",
+  "main": "index.js"
+}
+

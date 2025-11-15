@@ -1,291 +1,545 @@
-<a name="readme-top"></a>
+# Payment Execution Service
 
-<!--
-!!! IMPORTANT !!!
-This README is an example of how you could professionally present your codebase. 
-Writing documentation is a crucial part of your work as a professional software developer and cannot be ignored. 
+A robust Node.js REST API service for processing payment instructions. This service parses natural language payment instructions, validates them against business rules, and executes transactions on provided accounts.
 
-You should modify this file to match your project and remove sections that don't apply.
+## 🚀 Quick Links
 
-REQUIRED SECTIONS:
-- Table of Contents
-- About the Project
-  - Built With
-  - Live Demo
-- Getting Started
-- Authors
-- Future Features
-- Contributing
-- Show your support
-- Acknowledgements
-- License
+- [🔄 Gitflow Workflow](#gitflow-workflow)
 
-OPTIONAL SECTIONS:
-- FAQ
+## 📗 Table of Contents
 
-After you're finished please remove all the comments and instructions!
-
-For more information on the importance of a professional README for your repositories: https://github.com/microverseinc/curriculum-transversal-skills/blob/main/documentation/articles/readme_best_practices.md
--->
-
-<div align="center">
-  <!-- You are encouraged to replace this logo with your own! Otherwise you can also remove it. -->
-  <img src="murple_logo.png" alt="logo" width="140"  height="auto" />
-  <br/>
-
-  <h3><b>Microverse README Template</b></h3>
-
-</div>
-
-<!-- TABLE OF CONTENTS -->
-
-# 📗 Table of Contents
-
-- [📖 About the Project](#about-project)
-  - [🛠 Built With](#built-with)
-    - [Tech Stack](#tech-stack)
-    - [Key Features](#key-features)
-  - [🚀 Live Demo](#live-demo)
-- [💻 Getting Started](#getting-started)
+- [About the Project](#about-project)
+  - [Built With](#built-with)
+  - [Key Features](#key-features)
+- [Architecture](#architecture)
+- [API Documentation](#api-documentation)
+- [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Setup](#setup)
-  - [Install](#install)
+  - [Installation](#installation)
   - [Usage](#usage)
-  - [Run tests](#run-tests)
-  - [Deployment](#deployment)
-- [👥 Authors](#authors)
-- [🔭 Future Features](#future-features)
-- [🤝 Contributing](#contributing)
-- [⭐️ Show your support](#support)
-- [🙏 Acknowledgements](#acknowledgements)
-- [❓ FAQ (OPTIONAL)](#faq)
-- [📝 License](#license)
+- [Payment Instruction Format](#payment-instruction-format)
+- [Error Handling](#error-handling)
+- [Project Structure](#project-structure)
+- [Code Quality](#code-quality)
+- [Testing](#testing)
+- [Contributing](#contributing)
+- [License](#license)
 
-<!-- PROJECT DESCRIPTION -->
+---
 
-# 📖 [your_project_name] <a name="about-project"></a>
+## 🔄 Gitflow Workflow <a name="gitflow-workflow"></a>
 
-> Describe your project in 1 or 2 sentences.
+This project follows the **Gitflow** branching model for organized development and release management.
 
-**[your_project__name]** is a...
+### Branch Structure
 
-## 🛠 Built With <a name="built-with"></a>
+```
+master (production)
+  └── develop (integration)
+       ├── feature/* (new features)
+       ├── bugfix/* (bug fixes)
+       ├── hotfix/* (urgent production fixes)
+       └── release/* (preparation for releases)
+```
 
-### Tech Stack <a name="tech-stack"></a>
+### Branch Types
 
-> Describe the tech stack and include only the relevant sections that apply to your project.
+#### 🌿 **Master Branch**
+- **Purpose**: Production-ready code
+- **Protection**: Protected, requires PR approval
+- **Merges**: Only from `release/*` or `hotfix/*` branches
 
-<details>
-  <summary>Client</summary>
-  <ul>
-    <li><a href="https://reactjs.org/">React.js</a></li>
-  </ul>
-</details>
+#### 🔧 **Dev Branch**
+- **Purpose**: Integration branch for ongoing development
+- **Protection**: Protected, requires PR approval
+- **Merges**: From `feature/*`, `bugfix/*`, and `release/*` branches
+
+#### ✨ **Feature Branches** (`feature/*`)
+- **Naming**: `feature/description-of-feature` (e.g., `feature/payment-validation`)
+- **Purpose**: Develop new features
+- **Source**: Branch from `dev`
+- **Merge**: Back to `dev` via Pull Request
+- **Lifecycle**: Delete after merge
+
+**Example:**
+```bash
+# Create feature branch
+git checkout dev
+git pull origin dev
+git checkout -b feature/add-currency-validation
+
+# Work on feature, commit changes
+git add .
+git commit -m "feat: add currency validation"
+
+# Push and create PR
+git push origin feature/add-currency-validation
+# Create PR: feature/add-currency-validation → develop
+```
+
+**Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting, etc.)
+- `refactor`: Code refactoring
+- `test`: Adding or updating tests
+- `chore`: Maintenance tasks
+
+**Examples:**
+```bash
+feat(payment): add currency validation
+fix(parser): handle edge case in date parsing
+docs(readme): update deployment instructions
+refactor(validation): extract validation logic to separate module
+```
+
+### Pull Request Process
+
+1. **Create PR** from feature/bugfix branch to `dev`
+2. **PR Title**: Use conventional commit format
+3. **PR Description**: Include:
+   - What changed and why
+   - Testing steps
+   - Screenshots (if UI changes)
+   - Related issues
+4. **Review**: At least one approval required
+5. **CI/CD**: All checks must pass
+6. **Merge**: Squash and merge (keeps history clean)
+
+### Branch Protection Rules
+
+- **Main & Develop**: Protected branches
+- **Required Reviews**: At least 1 approval
+- **Status Checks**: All CI/CD checks must pass
+- **No Force Push**: Disabled
+- **No Direct Commits**: Must use PRs
+
+---
+
+### Deployment
+
+**Live URL**: [https://payment-execution-service-d9e2h.ondigitalocean.app](https://payment-execution-service-d9e2h.ondigitalocean.app)
+
+
+## 📖 About the Project <a name="about-project"></a>
+
+The Payment Execution Service is a Node.js backend application that processes payment instructions written in a natural language format. It supports two instruction formats (DEBIT and CREDIT), validates syntax and business rules, and executes transactions with proper balance tracking.
+
+### 🛠 Built With <a name="built-with"></a>
+
+#### Tech Stack
 
 <details>
   <summary>Server</summary>
   <ul>
+    <li><a href="https://nodejs.org/">Node.js</a></li>
     <li><a href="https://expressjs.com/">Express.js</a></li>
   </ul>
 </details>
 
 <details>
-<summary>Database</summary>
+  <summary>Core Libraries</summary>
   <ul>
-    <li><a href="https://www.postgresql.org/">PostgreSQL</a></li>
+    <li>Custom Validator (VSL - Validation Specification Language)</li>
+    <li>Custom Logger</li>
+    <li>Custom Error Handling</li>
   </ul>
 </details>
 
-<!-- Features -->
-
 ### Key Features <a name="key-features"></a>
 
-> Describe between 1-3 key features of the application.
+- **Natural Language Processing**: Parses payment instructions in plain English
+- **Dual Format Support**: Handles both DEBIT and CREDIT instruction formats
+- **Comprehensive Validation**: Syntax, format, and business logic validation
+- **Transaction Execution**: Immediate and scheduled transaction processing
+- **Balance Tracking**: Maintains `balance_before` for audit purposes
+- **Error Handling**: Detailed error messages with specific error codes
+- **Request Validation**: Validates request body structure before processing
 
-- **[key_feature_1]**
-- **[key_feature_2]**
-- **[key_feature_3]**
+## 🏗 Architecture <a name="architecture"></a>
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+The application follows a layered architecture pattern:
 
-<!-- LIVE DEMO -->
+```
+Request → Endpoint → Service → Validation → Execution → Response
+```
 
-## 🚀 Live Demo <a name="live-demo"></a>
+### Key Principles
 
-> Add a link to your deployed project.
+1. **Separation of Concerns**: Each layer has a specific responsibility
+2. **Single Responsibility**: Each module handles one concern
+3. **Validation First**: Input validation happens at the earliest stage
+4. **Functional Programming**: Pure functions with single exit points
+5. **Error Handling**: Centralized error handling with structured responses
 
-- [Live Demo Link](https://google.com)
+### Layer Responsibilities
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+- **Endpoints**: HTTP routing and request/response handling
+- **Services**: Business logic orchestration
+- **Validation**: Syntax, format, and business rule validation
+- **Execution**: Transaction processing and balance updates
 
-<!-- GETTING STARTED -->
+## 📚 API Documentation <a name="api-documentation"></a>
+
+### POST /payment-instructions
+
+Processes a payment instruction and executes the transaction.
+
+#### Request Body
+
+```json
+{
+  "accounts": [
+    {
+      "id": "account-1",
+      "balance": 1000,
+      "currency": "USD"
+    },
+    {
+      "id": "account-2",
+      "balance": 500,
+      "currency": "USD"
+    }
+  ],
+  "instruction": "DEBIT 100 USD FROM ACCOUNT account-1 FOR CREDIT TO ACCOUNT account-2"
+}
+```
+
+#### Request Validation
+
+The endpoint validates:
+- Request body is not empty
+- Request body is a valid JSON object
+- `accounts` array is present and not empty
+- `instruction` field is present and is a string
+- Each account has required fields (id, balance, currency)
+
+#### Success Response (200 OK)
+
+```json
+{
+  "data": {
+    "type": "DEBIT",
+    "amount": 100,
+    "currency": "USD",
+    "debit_account": "account-1",
+    "credit_account": "account-2",
+    "execute_by": null,
+    "status": "successful",
+    "status_reason": "Transaction executed successfully",
+    "status_code": "AP00",
+    "accounts": [
+      {
+        "id": "account-1",
+        "balance": 900,
+        "balance_before": 1000,
+        "currency": "USD"
+      },
+      {
+        "id": "account-2",
+        "balance": 600,
+        "balance_before": 500,
+        "currency": "USD"
+      }
+    ]
+  }
+}
+```
+
+#### Pending Response (200 OK)
+
+When transaction is scheduled for future execution:
+
+```json
+{
+  "data": {
+    "type": "DEBIT",
+    "amount": 100,
+    "currency": "USD",
+    "debit_account": "account-1",
+    "credit_account": "account-2",
+    "execute_by": "2025-12-31",
+    "status": "pending",
+    "status_reason": "Transaction scheduled for future execution",
+    "status_code": "AP02",
+    "accounts": [
+      {
+        "id": "account-1",
+        "balance": 1000,
+        "balance_before": 1000,
+        "currency": "USD"
+      },
+      {
+        "id": "account-2",
+        "balance": 500,
+        "balance_before": 500,
+        "currency": "USD"
+      }
+    ]
+  }
+}
+```
+
+#### Error Response (400 Bad Request)
+
+```json
+{
+  "status": "error",
+  "message": "Validation failed",
+  "code": "VALIDATION_ERROR"
+}
+```
 
 ## 💻 Getting Started <a name="getting-started"></a>
 
-> Describe how a new developer could make use of your project.
-
-To get a local copy up and running, follow these steps.
-
 ### Prerequisites
 
-In order to run this project you need:
-
-<!--
-Example command:
-
-```sh
- gem install rails
-```
- -->
+- Node.js v16 or higher
+- npm or yarn package manager
+- MongoDB (if using database features)
 
 ### Setup
 
-Clone this repository to your desired folder:
-
-<!--
-Example commands:
-
-```sh
-  cd my-folder
-  git clone git@github.com:myaccount/my-project.git
+1. Clone the repository:
+```bash
+git clone https://github.com/danielochuba/payment-execution-service.git
+cd payment-execution-service
 ```
---->
 
-### Install
-
-Install this project with:
-
-<!--
-Example command:
-
-```sh
-  cd my-project
-  gem install
+2. Install dependencies:
+```bash
+npm install
 ```
---->
 
 ### Usage
 
-To run the project, execute the following command:
+Start the development server:
 
-<!--
-Example command:
-
-```sh
-  rails server
+```bash
+node app.js
 ```
---->
 
-### Run tests
+The server will start on port 8811 (or the port specified in `.env`).
 
-To run tests, run the following command:
+### Testing the API
 
-<!--
-Example command:
+Using cURL:
 
-```sh
-  bin/rails test test/models/article_test.rb
+```bash
+curl -X POST http://localhost:8811/payment-instructions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "accounts": [
+      {"id": "a", "balance": 230, "currency": "USD"},
+      {"id": "b", "balance": 300, "currency": "USD"}
+    ],
+    "instruction": "DEBIT 30 USD FROM ACCOUNT a FOR CREDIT TO ACCOUNT b"
+  }'
 ```
---->
 
-### Deployment
+Using Postman or Thunder Client:
+1. Set method to POST
+2. URL: `http://localhost:8811/payment-instructions`
+3. Headers: `Content-Type: application/json`
+4. Body: JSON payload as shown above
 
-You can deploy this project using:
+## 📝 Payment Instruction Format <a name="payment-instruction-format"></a>
 
-<!--
-Example:
-
-```sh
+### DEBIT Format
 
 ```
- -->
+DEBIT [amount] [currency] FROM ACCOUNT [debit_account_id] FOR CREDIT TO ACCOUNT [credit_account_id] [ON [date]]
+```
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+**Example:**
+```
+DEBIT 100 USD FROM ACCOUNT account-1 FOR CREDIT TO ACCOUNT account-2
+DEBIT 50 GBP FROM ACCOUNT acc-1 FOR CREDIT TO ACCOUNT acc-2 ON 2025-12-31
+```
 
-<!-- AUTHORS -->
+### CREDIT Format
 
-## 👥 Authors <a name="authors"></a>
+```
+CREDIT [amount] [currency] TO ACCOUNT [credit_account_id] FOR DEBIT FROM ACCOUNT [debit_account_id] [ON [date]]
+```
 
-> Mention all of the collaborators of this project.
+**Example:**
+```
+CREDIT 100 USD TO ACCOUNT account-2 FOR DEBIT FROM ACCOUNT account-1
+CREDIT 50 GBP TO ACCOUNT acc-2 FOR DEBIT FROM ACCOUNT acc-1 ON 2025-12-31
+```
 
-👤 **Author1**
+### Format Rules
 
-- GitHub: [@githubhandle](https://github.com/githubhandle)
-- Twitter: [@twitterhandle](https://twitter.com/twitterhandle)
-- LinkedIn: [LinkedIn](https://linkedin.com/in/linkedinhandle)
+- **Case Insensitive**: Keywords can be in any case (DEBIT, debit, Debit)
+- **Whitespace**: Multiple spaces are normalized to single spaces
+- **Optional Date**: The `ON [date]` clause is optional
+- **Date Format**: Must be YYYY-MM-DD if provided
+- **Supported Currencies**: NGN, USD, GBP, GHS
 
-👤 **Author2**
+## ⚠️ Error Handling <a name="error-handling"></a>
 
-- GitHub: [@githubhandle](https://github.com/githubhandle)
-- Twitter: [@twitterhandle](https://twitter.com/twitterhandle)
-- LinkedIn: [LinkedIn](https://linkedin.com/in/linkedinhandle)
+### Validation Error Codes
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+| Code | Description |
+|------|-------------|
+| AM01 | Invalid amount (must be positive integer) |
+| CU01 | Currency mismatch between accounts |
+| CU02 | Unsupported currency |
+| AC01 | Insufficient funds in debit account |
+| AC02 | Debit and credit accounts cannot be the same |
+| AC03 | Account not found |
+| AC04 | Invalid account ID format |
+| DT01 | Invalid date format (must be YYYY-MM-DD) |
+| SY03 | Malformed instruction (parsing failed) |
 
-<!-- FUTURE FEATURES -->
+### Request Validation Errors
 
-## 🔭 Future Features <a name="future-features"></a>
+| Error | Code |
+|-------|------|
+| Empty request body | INVLDREQ |
+| Invalid request format | INVLDREQ |
+| Missing accounts array | VALIDATIONERR |
+| Empty accounts array | VALIDATIONERR |
+| Missing instruction | VALIDATIONERR |
+| Invalid instruction type | VALIDATIONERR |
 
-> Describe 1 - 3 features you will add to the project.
+### Error Response Format
 
-- [ ] **[new_feature_1]**
-- [ ] **[new_feature_2]**
-- [ ] **[new_feature_3]**
+```json
+{
+  "status": "error",
+  "message": "Error message description",
+  "code": "ERROR_CODE"
+}
+```
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+## 📁 Project Structure <a name="project-structure"></a>
 
-<!-- CONTRIBUTING -->
+```
+payment-execution-service/
+├── app.js                          # Application entry point
+├── bootstrap.js                    # Server bootstrap
+├── core/                          # Core utilities
+│   ├── errors/                    # Error handling
+│   ├── logger/                    # Logging utilities
+│   ├── validator/                 # VSL validator
+│   └── server/                    # Server setup
+├── endpoints/                     # API endpoints
+│   └── payment-instructions/
+│       └── process.js             # Payment instruction endpoint
+├── services/                      # Business logic
+│   └── payment-processor/
+│       ├── index.js               # Module exports
+│       ├── process-instruction.js # Main service
+│       ├── parse-instruction.js   # Instruction parser
+│       ├── validate-instruction.js # Validation logic
+│       └── execute-transaction.js # Transaction execution
+├── messages/                      # Error messages
+│   ├── index.js
+│   └── payment.js
+├── specs/                         # Validation specs
+│   └── payment-processor/
+│       ├── data/
+│       │   └── process-instruction.go
+│       └── endpoint/
+│           └── process-instruction.endpoint.go
+└── README.md                      # Project documentation
+```
+
+## 🎯 Code Quality <a name="code-quality"></a>
+
+### Principles
+
+1. **Single Responsibility**: Each module has one clear purpose
+2. **Validation First**: Input validation happens before processing
+3. **Single Exit Point**: Functions have one return statement
+4. **Error Messages**: All errors use messages from message files
+5. **No Regex**: String manipulation only (no regular expressions)
+6. **Functional Style**: Pure functions where possible
+
+### Code Conventions
+
+- **File Naming**: kebab-case (e.g., `process-instruction.js`)
+- **Functions**: camelCase (e.g., `processPaymentInstruction`)
+- **Constants**: SCREAMING_SNAKE_CASE (e.g., `SUPPORTED_CURRENCIES`)
+- **Response Fields**: snake_case (e.g., `debit_account`)
+
+## 🧪 Testing <a name="testing"></a>
+
+### Manual Testing
+
+Test various scenarios:
+
+1. **Successful Transaction**:
+```json
+{
+  "accounts": [
+    {"id": "a", "balance": 1000, "currency": "USD"},
+    {"id": "b", "balance": 500, "currency": "USD"}
+  ],
+  "instruction": "DEBIT 100 USD FROM ACCOUNT a FOR CREDIT TO ACCOUNT b"
+}
+```
+
+2. **Pending Transaction**:
+```json
+{
+  "accounts": [
+    {"id": "a", "balance": 1000, "currency": "USD"},
+    {"id": "b", "balance": 500, "currency": "USD"}
+  ],
+  "instruction": "DEBIT 100 USD FROM ACCOUNT a FOR CREDIT TO ACCOUNT b ON 2025-12-31"
+}
+```
+
+3. **Insufficient Funds**:
+```json
+{
+  "accounts": [
+    {"id": "a", "balance": 50, "currency": "USD"},
+    {"id": "b", "balance": 500, "currency": "USD"}
+  ],
+  "instruction": "DEBIT 100 USD FROM ACCOUNT a FOR CREDIT TO ACCOUNT b"
+}
+```
+
+4. **Currency Mismatch**:
+```json
+{
+  "accounts": [
+    {"id": "a", "balance": 1000, "currency": "USD"},
+    {"id": "b", "balance": 500, "currency": "GBP"}
+  ],
+  "instruction": "DEBIT 100 USD FROM ACCOUNT a FOR CREDIT TO ACCOUNT b"
+}
+```
+
+5. **Invalid Request**:
+```json
+{}
+```
 
 ## 🤝 Contributing <a name="contributing"></a>
 
 Contributions, issues, and feature requests are welcome!
 
-Feel free to check the [issues page](../../issues/).
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+### Development Guidelines
 
-<!-- SUPPORT -->
+- Follow the existing code style
+- Write clear commit messages
+- Update documentation for new features
+- Ensure all validations are in place
+- Test your changes thoroughly
 
-## ⭐️ Show your support <a name="support"></a>
 
-> Write a message to encourage readers to support your project
-
-If you like this project...
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- ACKNOWLEDGEMENTS -->
-
-## 🙏 Acknowledgments <a name="acknowledgements"></a>
-
-> Give credit to everyone who inspired your codebase.
-
-I would like to thank...
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- FAQ (optional) -->
-
-## ❓ FAQ (OPTIONAL) <a name="faq"></a>
-
-> Add at least 2 questions new developers would ask when they decide to use your project.
-
-- **[Question_1]**
-
-  - [Answer_1]
-
-- **[Question_2]**
-
-  - [Answer_2]
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- LICENSE -->
-
-## 📝 License <a name="license"></a>
-
-This project is [MIT](./LICENSE) licensed.
-
-_NOTE: we recommend using the [MIT license](https://choosealicense.com/licenses/mit/) - you can set it up quickly by [using templates available on GitHub](https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/adding-a-license-to-a-repository). You can also use [any other license](https://choosealicense.com/licenses/) if you wish._
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
