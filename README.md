@@ -36,7 +36,7 @@ This project follows the **Gitflow** branching model for organized development a
 ### Branch Structure
 
 ```
-main (production)
+master (production)
   └── develop (integration)
        ├── feature/* (new features)
        ├── bugfix/* (bug fixes)
@@ -100,7 +100,7 @@ refactor(validation): extract validation logic to separate module
 
 ### Pull Request Process
 
-1. **Create PR** from feature/bugfix branch to `develop`
+1. **Create PR** from feature/bugfix branch to `dev`
 2. **PR Title**: Use conventional commit format
 3. **PR Description**: Include:
    - What changed and why
@@ -139,49 +139,6 @@ The project uses **GitHub Actions** for automated CI/CD. The pipeline automatica
 - Deploys to staging when PR is opened to `dev` branch
 - Deploys to production when PR is opened to `main` branch
 
-#### GitHub Secrets Configuration
-
-To enable automated deployment, configure the following secrets in your GitHub repository:
-
-1. **Go to GitHub Repository** → Settings → Secrets and variables → Actions
-
-2. **Add the following secrets:**
-
-   - `AZURE_CREDENTIALS`: Azure Service Principal credentials (JSON format)
-
-#### How to Get Azure Credentials (Service Principal)
-
-1. **Create Service Principal via Azure CLI:**
-   ```bash
-   az ad sp create-for-rbac --name "github-actions-payment-service" \
-     --role contributor \
-     --scopes /subscriptions/{subscription-id}/resourceGroups/payment-service-rg \
-     --sdk-auth
-   ```
-
-2. **Copy the JSON output** and paste it as the `AZURE_CREDENTIALS` secret value. The output looks like:
-   ```json
-   {
-     "clientId": "...",
-     "clientSecret": "...",
-     "subscriptionId": "...",
-     "tenantId": "..."
-   }
-   ```
-
-3. **Alternative: Via Azure Portal:**
-   - Azure Active Directory → App registrations → New registration
-   - Create the app, then go to Certificates & secrets
-   - Create a new client secret
-   - Grant "Contributor" role to the service principal on your resource group
-
-#### Workflow File
-
-The CI/CD pipeline is configured in `.github/workflows/azure-deploy.yml`:
-
-- **Triggers**: Pull requests to `dev` and `main` branches
-- **Test Job**: Runs ESLint and tests before deployment
-- **Deploy Jobs**: Deploys to appropriate environment based on target branch
 
 #### Pipeline Steps
 
