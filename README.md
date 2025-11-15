@@ -129,8 +129,8 @@ This project is deployed on **Microsoft Azure** using Azure App Service with aut
 
 | Environment | Branch | URL | Purpose |
 |------------|--------|-----|---------|
-| **Production** | `main` | `https://payment-service.azurewebsites.net` | Live production environment |
-| **Staging** | `dev` | `https://payment-service-staging.azurewebsites.net` | Pre-production testing |
+
+| **Staging** | `dev` | `https://payment-execution-service-h2hdcrenb3beczh5.polandcentral-01.azurewebsites.net` | Pre-production testing |
 
 ### CI/CD Pipeline Setup
 
