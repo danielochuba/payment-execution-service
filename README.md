@@ -5,7 +5,6 @@ A robust Node.js REST API service for processing payment instructions. This serv
 ## 🚀 Quick Links
 
 - [🔄 Gitflow Workflow](#gitflow-workflow)
-- [☁️ Azure Deployment](#azure-deployment)
 
 ## 📗 Table of Contents
 
@@ -49,13 +48,11 @@ master (production)
 #### 🌿 **Master Branch**
 - **Purpose**: Production-ready code
 - **Protection**: Protected, requires PR approval
-- **Deployment**: Auto-deploys to Azure production environment
 - **Merges**: Only from `release/*` or `hotfix/*` branches
 
 #### 🔧 **Dev Branch**
 - **Purpose**: Integration branch for ongoing development
 - **Protection**: Protected, requires PR approval
-- **Deployment**: Auto-deploys to Azure staging environment
 - **Merges**: From `feature/*`, `bugfix/*`, and `release/*` branches
 
 #### ✨ **Feature Branches** (`feature/*`)
@@ -120,37 +117,6 @@ refactor(validation): extract validation logic to separate module
 - **No Direct Commits**: Must use PRs
 
 ---
-
-## ☁️ Azure Deployment <a name="azure-deployment"></a>
-
-This project is deployed on **Microsoft Azure** using Azure App Service with automated CI/CD pipelines.
-
-### Deployment Environments
-
-| Environment | Branch | URL | Purpose |
-|------------|--------|-----|---------|
-
-| **Staging** | `dev` | `https://payment-execution-service-h2hdcrenb3beczh5.polandcentral-01.azurewebsites.net` | Pre-production testing |
-
-### CI/CD Pipeline Setup
-
-The project uses **GitHub Actions** for automated CI/CD. The pipeline automatically:
-- Runs tests and linting on every PR
-- Deploys to staging when PR is opened to `dev` branch
-- Deploys to production when PR is opened to `main` branch
-
-
-#### Pipeline Steps
-
-1. **Test & Lint**: Runs on every PR
-   - Installs dependencies
-   - Runs ESLint
-   - Runs test suite
-
-2. **Deploy to Staging**: Runs when PR targets `dev`
-   - Deploys to staging App Service
-   - Environment: `staging`
-
 
 ## 📖 About the Project <a name="about-project"></a>
 
