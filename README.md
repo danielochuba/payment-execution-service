@@ -46,7 +46,7 @@ main (production)
 
 ### Branch Types
 
-#### 🌿 **Main Branch**
+#### 🌿 **Master Branch**
 - **Purpose**: Production-ready code
 - **Protection**: Protected, requires PR approval
 - **Deployment**: Auto-deploys to Azure production environment
@@ -147,24 +147,33 @@ To enable automated deployment, configure the following secrets in your GitHub r
 
 2. **Add the following secrets:**
 
-   - `AZURE_WEBAPP_PUBLISH_PROFILE_STAGING`: Publish profile for staging environment
-   - `AZURE_WEBAPP_PUBLISH_PROFILE_PRODUCTION`: Publish profile for production environment
+   - `AZURE_CREDENTIALS`: Azure Service Principal credentials (JSON format)
 
-#### How to Get Azure Publish Profile
+#### How to Get Azure Credentials (Service Principal)
 
-1. **Via Azure Portal:**
-   - Navigate to your App Service
-   - Click "Get publish profile" in the Overview section
-   - Download the `.PublishSettings` file
-   - Copy the entire content and paste it as the secret value
-
-2. **Via Azure CLI:**
+1. **Create Service Principal via Azure CLI:**
    ```bash
-   az webapp deployment list-publishing-profiles \
-     --name payment-service-staging \
-     --resource-group payment-service-rg \
-     --xml
+   az ad sp create-for-rbac --name "github-actions-payment-service" \
+     --role contributor \
+     --scopes /subscriptions/{subscription-id}/resourceGroups/payment-service-rg \
+     --sdk-auth
    ```
+
+2. **Copy the JSON output** and paste it as the `AZURE_CREDENTIALS` secret value. The output looks like:
+   ```json
+   {
+     "clientId": "...",
+     "clientSecret": "...",
+     "subscriptionId": "...",
+     "tenantId": "..."
+   }
+   ```
+
+3. **Alternative: Via Azure Portal:**
+   - Azure Active Directory → App registrations → New registration
+   - Create the app, then go to Certificates & secrets
+   - Create a new client secret
+   - Grant "Contributor" role to the service principal on your resource group
 
 #### Workflow File
 
@@ -184,22 +193,6 @@ The CI/CD pipeline is configured in `.github/workflows/azure-deploy.yml`:
 2. **Deploy to Staging**: Runs when PR targets `dev`
    - Deploys to staging App Service
    - Environment: `staging`
-
-3. **Deploy to Production**: Runs when PR targets `main`
-   - Deploys to production App Service
-   - Environment: `production`
-
-#### Manual Workflow Trigger
-
-You can also manually trigger the workflow:
-
-```bash
-# Via GitHub CLI
-gh workflow run azure-deploy.yml
-
-# Or via GitHub UI
-# Actions tab → Select workflow → Run workflow
-```
 
 
 ## 📖 About the Project <a name="about-project"></a>
