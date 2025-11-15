@@ -12,7 +12,13 @@ const PaymentMessages = {
   MALFORMED_INSTRUCTION: 'Malformed instruction: unable to parse keywords',
   TRANSACTION_SUCCESSFUL: 'Transaction executed successfully',
   TRANSACTION_PENDING: 'Transaction scheduled for future execution',
+  EMPTY_REQUEST_BODY: 'Request body cannot be empty',
+  INVALID_REQUEST_FORMAT: 'Request body must be a valid JSON object',
+  MISSING_ACCOUNTS: 'Accounts array is required',
+  MISSING_INSTRUCTION: 'Instruction field is required',
+  INVALID_ACCOUNTS_TYPE: 'Accounts must be an array',
+  EMPTY_ACCOUNTS: 'Accounts array cannot be empty',
+  INVALID_INSTRUCTION_TYPE: 'Instruction must be a string',
 };
 
 module.exports = PaymentMessages;
-

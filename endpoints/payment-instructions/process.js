@@ -1,5 +1,5 @@
 const { createHandler } = require('@app-core/server');
-const processPaymentInstruction = require('@app/services/payment-processor/process-instruction');
+const { processPaymentInstruction } = require('@app/services/payment-processor');
 
 module.exports = createHandler({
   path: '/payment-instructions',
@@ -9,8 +9,6 @@ module.exports = createHandler({
     const payload = rc.body;
 
     const response = await processPaymentInstruction(payload);
-
-    // Determine HTTP status code based on response status
     const httpStatus =
       response.status === 'successful' || response.status === 'pending'
         ? helpers.http_statuses.HTTP_200_OK
@@ -18,8 +16,8 @@ module.exports = createHandler({
 
     return {
       status: httpStatus,
+      message: response.status_reason,
       data: response,
     };
   },
 });
-

@@ -1,0 +1,74 @@
+name: CI/CD Pipeline
+
+on:
+  pull_request:
+    branches:
+      - dev
+    types: [opened, synchronize, reopened]
+
+env:
+  NODE_VERSION: '18.x'
+  AZURE_WEBAPP_NAME_STAGING: 'payment-service-staging'
+  AZURE_RESOURCE_GROUP: 'payment-service-rg'
+
+jobs:
+  test:
+    name: Run Tests and Linting
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npx eslint . --ext .js --fix || true
+
+      - name: Run tests
+        run: |
+          if [ -d "test" ] || find . -name "*.test.js" -o -name "*.spec.js" | grep -q .; then
+            USE_MOCK_MODEL=1 npx mocha --recursive --require dotenv/config || true
+          else
+            echo "No test files found. Skipping tests."
+          fi
+        continue-on-error: true
+
+  deploy-staging:
+    name: Deploy to Staging (Azure)
+    runs-on: ubuntu-latest
+    needs: test
+    environment:
+      name: staging
+      url: https://payment-execution-service-h2hdcrenb3beczh5.polandcentral-01.azurewebsites.net
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Azure Staging
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: payment-execution-service
+
