@@ -118,6 +118,11 @@ refactor(validation): extract validation logic to separate module
 
 ---
 
+### Deployment
+
+**Live URL**: [https://payment-execution-service-d9e2h.ondigitalocean.app](https://payment-execution-service-d9e2h.ondigitalocean.app)
+
+
 ## 📖 About the Project <a name="about-project"></a>
 
 The Payment Execution Service is a Node.js backend application that processes payment instructions written in a natural language format. It supports two instruction formats (DEBIT and CREDIT), validates syntax and business rules, and executes transactions with proper balance tracking.
