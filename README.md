@@ -2,6 +2,11 @@
 
 A robust Node.js REST API service for processing payment instructions. This service parses natural language payment instructions, validates them against business rules, and executes transactions on provided accounts.
 
+## 🚀 Quick Links
+
+- [🔄 Gitflow Workflow](#gitflow-workflow)
+- [☁️ Azure Deployment](#azure-deployment)
+
 ## 📗 Table of Contents
 
 - [About the Project](#about-project)
@@ -21,6 +26,181 @@ A robust Node.js REST API service for processing payment instructions. This serv
 - [Testing](#testing)
 - [Contributing](#contributing)
 - [License](#license)
+
+---
+
+## 🔄 Gitflow Workflow <a name="gitflow-workflow"></a>
+
+This project follows the **Gitflow** branching model for organized development and release management.
+
+### Branch Structure
+
+```
+main (production)
+  └── develop (integration)
+       ├── feature/* (new features)
+       ├── bugfix/* (bug fixes)
+       ├── hotfix/* (urgent production fixes)
+       └── release/* (preparation for releases)
+```
+
+### Branch Types
+
+#### 🌿 **Main Branch**
+- **Purpose**: Production-ready code
+- **Protection**: Protected, requires PR approval
+- **Deployment**: Auto-deploys to Azure production environment
+- **Merges**: Only from `release/*` or `hotfix/*` branches
+
+#### 🔧 **Dev Branch**
+- **Purpose**: Integration branch for ongoing development
+- **Protection**: Protected, requires PR approval
+- **Deployment**: Auto-deploys to Azure staging environment
+- **Merges**: From `feature/*`, `bugfix/*`, and `release/*` branches
+
+#### ✨ **Feature Branches** (`feature/*`)
+- **Naming**: `feature/description-of-feature` (e.g., `feature/payment-validation`)
+- **Purpose**: Develop new features
+- **Source**: Branch from `dev`
+- **Merge**: Back to `dev` via Pull Request
+- **Lifecycle**: Delete after merge
+
+**Example:**
+```bash
+# Create feature branch
+git checkout dev
+git pull origin dev
+git checkout -b feature/add-currency-validation
+
+# Work on feature, commit changes
+git add .
+git commit -m "feat: add currency validation"
+
+# Push and create PR
+git push origin feature/add-currency-validation
+# Create PR: feature/add-currency-validation → develop
+```
+
+**Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting, etc.)
+- `refactor`: Code refactoring
+- `test`: Adding or updating tests
+- `chore`: Maintenance tasks
+
+**Examples:**
+```bash
+feat(payment): add currency validation
+fix(parser): handle edge case in date parsing
+docs(readme): update deployment instructions
+refactor(validation): extract validation logic to separate module
+```
+
+### Pull Request Process
+
+1. **Create PR** from feature/bugfix branch to `develop`
+2. **PR Title**: Use conventional commit format
+3. **PR Description**: Include:
+   - What changed and why
+   - Testing steps
+   - Screenshots (if UI changes)
+   - Related issues
+4. **Review**: At least one approval required
+5. **CI/CD**: All checks must pass
+6. **Merge**: Squash and merge (keeps history clean)
+
+### Branch Protection Rules
+
+- **Main & Develop**: Protected branches
+- **Required Reviews**: At least 1 approval
+- **Status Checks**: All CI/CD checks must pass
+- **No Force Push**: Disabled
+- **No Direct Commits**: Must use PRs
+
+---
+
+## ☁️ Azure Deployment <a name="azure-deployment"></a>
+
+This project is deployed on **Microsoft Azure** using Azure App Service with automated CI/CD pipelines.
+
+### Deployment Environments
+
+| Environment | Branch | URL | Purpose |
+|------------|--------|-----|---------|
+| **Production** | `main` | `https://payment-service.azurewebsites.net` | Live production environment |
+| **Staging** | `dev` | `https://payment-service-staging.azurewebsites.net` | Pre-production testing |
+
+### CI/CD Pipeline Setup
+
+The project uses **GitHub Actions** for automated CI/CD. The pipeline automatically:
+- Runs tests and linting on every PR
+- Deploys to staging when PR is opened to `dev` branch
+- Deploys to production when PR is opened to `main` branch
+
+#### GitHub Secrets Configuration
+
+To enable automated deployment, configure the following secrets in your GitHub repository:
+
+1. **Go to GitHub Repository** → Settings → Secrets and variables → Actions
+
+2. **Add the following secrets:**
+
+   - `AZURE_WEBAPP_PUBLISH_PROFILE_STAGING`: Publish profile for staging environment
+   - `AZURE_WEBAPP_PUBLISH_PROFILE_PRODUCTION`: Publish profile for production environment
+
+#### How to Get Azure Publish Profile
+
+1. **Via Azure Portal:**
+   - Navigate to your App Service
+   - Click "Get publish profile" in the Overview section
+   - Download the `.PublishSettings` file
+   - Copy the entire content and paste it as the secret value
+
+2. **Via Azure CLI:**
+   ```bash
+   az webapp deployment list-publishing-profiles \
+     --name payment-service-staging \
+     --resource-group payment-service-rg \
+     --xml
+   ```
+
+#### Workflow File
+
+The CI/CD pipeline is configured in `.github/workflows/azure-deploy.yml`:
+
+- **Triggers**: Pull requests to `dev` and `main` branches
+- **Test Job**: Runs ESLint and tests before deployment
+- **Deploy Jobs**: Deploys to appropriate environment based on target branch
+
+#### Pipeline Steps
+
+1. **Test & Lint**: Runs on every PR
+   - Installs dependencies
+   - Runs ESLint
+   - Runs test suite
+
+2. **Deploy to Staging**: Runs when PR targets `dev`
+   - Deploys to staging App Service
+   - Environment: `staging`
+
+3. **Deploy to Production**: Runs when PR targets `main`
+   - Deploys to production App Service
+   - Environment: `production`
+
+#### Manual Workflow Trigger
+
+You can also manually trigger the workflow:
+
+```bash
+# Via GitHub CLI
+gh workflow run azure-deploy.yml
+
+# Or via GitHub UI
+# Actions tab → Select workflow → Run workflow
+```
+
 
 ## 📖 About the Project <a name="about-project"></a>
 

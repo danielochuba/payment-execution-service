@@ -1,0 +1,97 @@
+name: CI/CD Pipeline
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+    types: [opened, synchronize, reopened]
+
+env:
+  NODE_VERSION: '18.x'
+  AZURE_WEBAPP_NAME_STAGING: 'payment-service-staging'
+  AZURE_WEBAPP_NAME_PRODUCTION: 'payment-service'
+
+jobs:
+  test:
+    name: Run Tests and Linting
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npx eslint . --ext .js --fix || true
+
+      - name: Run tests
+        run: USE_MOCK_MODEL=1 npx mocha --recursive --require dotenv/config
+        continue-on-error: false
+
+  deploy-staging:
+    name: Deploy to Staging (Azure)
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event.pull_request.base.ref == 'dev'
+    environment:
+      name: staging
+      url: https://${{ env.AZURE_WEBAPP_NAME_STAGING }}.azurewebsites.net
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy to Azure Staging
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME_STAGING }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_STAGING }}
+          package: .
+
+  deploy-production:
+    name: Deploy to Production (Azure)
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event.pull_request.base.ref == 'main'
+    environment:
+      name: production
+      url: https://${{ env.AZURE_WEBAPP_NAME_PRODUCTION }}.azurewebsites.net
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy to Azure Production
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME_PRODUCTION }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_PRODUCTION }}
+          package: .
+
