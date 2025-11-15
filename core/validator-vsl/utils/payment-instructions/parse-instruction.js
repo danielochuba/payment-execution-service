@@ -4,18 +4,71 @@
  */
 
 function normalizeInstruction(instruction) {
-  let normalized = instruction.trim();
-  // Replace multiple spaces with single space
-  while (normalized.includes('  ')) {
-    normalized = normalized.replace('  ', ' ');
+  const normalized = instruction.trim();
+  let result = '';
+  let lastChar = '';
+
+  for (let i = 0; i < normalized.length; i += 1) {
+    const char = normalized[i];
+    const isWhitespace = char === ' ' || char === '\t' || char === '\n' || char === '\r';
+
+    if (isWhitespace) {
+      if (lastChar !== ' ') {
+        result += ' ';
+        lastChar = ' ';
+      }
+    } else {
+      result += char;
+      lastChar = char;
+    }
   }
-  return normalized;
+
+  return result.trim();
 }
 
 function findKeyword(text, keyword) {
   const lowerText = text.toLowerCase();
   const lowerKeyword = keyword.toLowerCase();
   return lowerText.indexOf(lowerKeyword);
+}
+
+function isKeywordProperlySeparated(text, keyword, position) {
+  if (position === -1) {
+    return false;
+  }
+
+  const keywordLength = keyword.length;
+  const textLength = text.length;
+
+  if (position + keywordLength > textLength) {
+    return false;
+  }
+
+  const actualKeyword = text.substring(position, position + keywordLength);
+  const keywordLower = keyword.toLowerCase();
+  const actualKeywordLower = actualKeyword.toLowerCase();
+
+  if (actualKeywordLower !== keywordLower) {
+    return false;
+  }
+
+  const charBefore = position > 0 ? text[position - 1] : null;
+  const charAfter = position + keywordLength < textLength ? text[position + keywordLength] : null;
+
+  const isWhitespaceBefore =
+    charBefore === null ||
+    charBefore === ' ' ||
+    charBefore === '\t' ||
+    charBefore === '\n' ||
+    charBefore === '\r';
+  const isWhitespaceAfter =
+    charAfter === null ||
+    charAfter === ' ' ||
+    charAfter === '\t' ||
+    charAfter === '\n' ||
+    charAfter === '\r';
+
+  return isWhitespaceBefore && isWhitespaceAfter;
 }
 
 function parseDebitFormat(instruction) {
@@ -43,6 +96,19 @@ function parseDebitFormat(instruction) {
     account2Pos !== -1;
 
   if (allPresent) {
+    const keywordsValid =
+      isKeywordProperlySeparated(normalized, 'DEBIT', debitPos) &&
+      isKeywordProperlySeparated(normalized, 'FROM', fromPos) &&
+      isKeywordProperlySeparated(normalized, 'ACCOUNT', accountPos) &&
+      isKeywordProperlySeparated(normalized, 'FOR', forPos) &&
+      isKeywordProperlySeparated(normalized, 'CREDIT', creditPos) &&
+      isKeywordProperlySeparated(normalized, 'TO', toPos) &&
+      isKeywordProperlySeparated(normalized, 'ACCOUNT', account2Pos);
+
+    if (!keywordsValid) {
+      return result;
+    }
+
     // Validate order of keywords
     const correctOrder =
       debitPos < fromPos &&
@@ -120,6 +186,19 @@ function parseCreditFormat(instruction) {
     account2Pos !== -1;
 
   if (allKeywordsPresent) {
+    const keywordsValid =
+      isKeywordProperlySeparated(normalized, 'CREDIT', creditPos) &&
+      isKeywordProperlySeparated(normalized, 'TO', toPos) &&
+      isKeywordProperlySeparated(normalized, 'ACCOUNT', accountPos) &&
+      isKeywordProperlySeparated(normalized, 'FOR', forPos) &&
+      isKeywordProperlySeparated(normalized, 'DEBIT', debitPos) &&
+      isKeywordProperlySeparated(normalized, 'FROM', fromPos) &&
+      isKeywordProperlySeparated(normalized, 'ACCOUNT', account2Pos);
+
+    if (!keywordsValid) {
+      return result;
+    }
+
     // Validate order
     const correctOrder =
       creditPos < toPos &&

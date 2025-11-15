@@ -89,4 +89,8 @@ ENDPOINT_CONFIGS.forEach((config) => {
   setupEndpointHandlers(config.path, config.options);
 });
 
+const rootHandler = require('./endpoints/root');
+
+server.addHandler(rootHandler);
+
 server.startServer();
